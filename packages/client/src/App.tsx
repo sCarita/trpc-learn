@@ -9,6 +9,7 @@ const client = new QueryClient();
 
 const AppContent = () => {
   const getMessages = trpc.useQuery(["getMessages"]);
+  const getHello = trpc.useQuery(["hello"]);
 
   const [user, setUser] = useState("");
   const [message, setMessage] = useState("");
@@ -29,6 +30,10 @@ const AppContent = () => {
 
   return (
     <div className="mt-10 text-3xl mx-auto max-w-6xl">
+      <div>
+        {(getHello.data)}
+      </div>
+      <br/>
       <div>
         {(getMessages.data ?? []).map((row) => (
           <div key={row.message}>{JSON.stringify(row)}</div>
