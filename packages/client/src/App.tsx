@@ -1,81 +1,65 @@
-import React, { useState } from "react";
-import ReactDOM from "react-dom";
-import { QueryClient, QueryClientProvider } from "react-query";
-import { trpc } from "./trpc";
+import { useState } from "react";
+import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { getFetch } from "@trpc/client";
+import { trpc } from "./utils/trpc";
+import { loggerLink } from "@trpc/client/links/loggerLink";
+import { httpBatchLink } from "@trpc/client/links/httpBatchLink";
+import { useRoutes } from "react-router-dom";
+import routes from "./router";
+import { BrowserRouter as Router } from "react-router-dom";
+import AuthMiddleware from "./middleware/AuthMiddleware";
+import { ToastContainer } from "react-toastify";
+import "./global.css";
+import "react-toastify/dist/ReactToastify.css";
 
-import "./index.scss";
+function AppContent() {
+  const content = useRoutes(routes);
+  return content;
+}
 
-const client = new QueryClient();
-
-const AppContent = () => {
-  const getMessages = trpc.useQuery(["getMessages"]);
-  const getHello = trpc.useQuery(["hello"]);
-
-  const [user, setUser] = useState("");
-  const [message, setMessage] = useState("");
-  const addMessage = trpc.useMutation("addMessage");
-  const onAdd = () => {
-    addMessage.mutate(
-      {
-        message,
-        user,
-      },
-      {
-        onSuccess: () => {
-          client.invalidateQueries(["getMessages"]);
+function App() {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 5 * 1000,
+          },
         },
-      }
-    );
-  };
-
-  return (
-    <div className="mt-10 text-3xl mx-auto max-w-6xl">
-      <div>
-        {(getHello.data)}
-      </div>
-      <br/>
-      <div>
-        {(getMessages.data ?? []).map((row) => (
-          <div key={row.message}>{JSON.stringify(row)}</div>
-        ))}
-      </div>
-
-      <div className="mt-10">
-        <input
-          type="text"
-          value={user}
-          onChange={(e) => setUser(e.target.value)}
-          className="p-5 border-2 border-gray-300 rounded-lg w-full"
-          placeholder="User"
-        />
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          className="p-5 border-2 border-gray-300 rounded-lg w-full"
-          placeholder="Message"
-        />
-      </div>
-
-      <button onClick={onAdd}>Add message</button>
-    </div>
+      })
   );
-};
 
-const App = () => {
   const [trpcClient] = useState(() =>
     trpc.createClient({
-      url: "http://localhost:8080/trpc",
+      links: [
+        loggerLink(),
+        httpBatchLink({
+          url: "http://localhost:8000/api/trpc",
+          fetch: async (input, init?) => {
+            const fetch = getFetch();
+            return fetch(input, {
+              ...init,
+              credentials: "include",
+            });
+          },
+        }),
+      ],
     })
   );
-
   return (
-    <trpc.Provider client={trpcClient} queryClient={client}>
-      <QueryClientProvider client={client}>
-        <AppContent />
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <AuthMiddleware>
+            <AppContent />
+          </AuthMiddleware>
+          <ToastContainer />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </Router>
       </QueryClientProvider>
     </trpc.Provider>
   );
-};
+}
 
-ReactDOM.render(<App />, document.getElementById("app"));
+export default App;

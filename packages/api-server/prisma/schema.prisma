@@ -16,7 +16,7 @@ model User{
   id String  @id @default(uuid())
   name String  @db.VarChar(255)
   email String @unique
-  photo String? @default("default.png")
+  // photo String? @default("default.png")
   verified Boolean? @default(false) 
   
   password String
